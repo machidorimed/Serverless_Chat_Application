@@ -30,6 +30,9 @@ jobs:
         steps:
             - uses: actions/checkout@v5
 
+            - name: Debug repository name
+              run: echo "${{ github.repository }}"
+
             - name: Check Ubuntu version
               run: cat /etc/os-release
 
