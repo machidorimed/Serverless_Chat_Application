@@ -10,6 +10,15 @@ on:
             - "infra/**"
             - ".github/workflows/terraform.yaml"
 
+    push:
+        branches:
+            - main
+        paths:
+            - "backend/**"
+            - "frontend/**"
+            - "infra/**"
+            - ".github/workflows/terraform.yaml"
+
 jobs:
     # ------------------------------------------------------------#
     # Test when submitting a pull request
@@ -52,3 +61,124 @@ jobs:
             - run: terraform validate
             - run: terraform test
             - run: terraform plan
+    # ------------------------------------------------------------#
+    # Apply when the request is marged
+    # ------------------------------------------------------------#
+    terraform-apply:
+        # マージされた時、デプロイ
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-24.04
+
+        defaults:
+            run:
+                working-directory: infra/terraform
+
+        outputs:
+            cloudfront_distribution_id: ${{ steps.tf-cf-id.outputs.cloudfront_distribution_id }}
+            cloudfront_domain: ${{ steps.tf-cf-do.outputs.cloudfront_domain }}
+            s3_bucket_name: ${{ steps.tf-s3.outputs.s3_bucket_name }}
+            user_pool_client_id: ${{ steps.tf-cog-c-id.outputs.user_pool_client_id }}
+            user_pool_id: ${{ steps.tf-cog-id.outputs.user_pool_id }}
+            websocket_url: ${{ steps.tf-api.outputs.websocket_url }}
+
+        permissions:
+            id-token: write
+            contents: read
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - name: Install backend dependencies
+              working-directory: backend
+              run: npm install
+
+            - uses: hashicorp/setup-terraform@v3
+              with:
+                  terraform_version: 1.8.5
+
+            - uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  aws-region: ap-northeast-1
+
+            - run: terraform init
+            - run: terraform apply -auto-approve
+
+            - name: Get CloudFront Distribution ID
+              id: tf-cf-id
+              run: |
+                  echo "cloudfront_distribution_id=$(terraform output -raw cloudfront_distribution_id)" >> $GITHUB_OUTPUT
+
+            - name: Get CloudFront Domain
+              id: tf-cf-do
+              run: |
+                  echo "cloudfront_domain=$(terraform output -raw cloudfront_domain)" >> $GITHUB_OUTPUT
+
+            - name: Get S3 bucket Name
+              id: tf-s3
+              run: |
+                  echo "s3_bucket_name=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+
+            - name: Get Cognito User Pool Client ID
+              id: tf-cog-c-id
+              run: |
+                  echo "user_pool_client_id=$(terraform output -raw user_pool_client_id)" >> $GITHUB_OUTPUT
+
+            - name: Get Cognito User Pool ID
+              id: tf-cog-id
+              run: |
+                  echo "user_pool_id=$(terraform output -raw user_pool_id)" >> $GITHUB_OUTPUT
+
+            - name: Get Websocket API URL
+              id: tf-api
+              run: |
+                  echo "websocket_url=$(terraform output -raw websocket_url)" >> $GITHUB_OUTPUT
+
+    frontend-build:
+        needs: terraform-apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-24.04
+
+        defaults:
+            run:
+                working-directory: frontend
+
+        env:
+            CLOUDFRONT_DISTRIBUTION_ID: ${{ needs.terraform-apply.outputs.cloudfront_distribution_id }}
+            CLOUDFRONT_DOMAIN: ${{ needs.terraform-apply.outputs.cloudfront_domain }}
+            S3_BUCKET_NAME: ${{ needs.terraform-apply.outputs.s3_bucket_name }}
+            VITE_USER_POOL_CLIENT_ID: ${{ needs.terraform-apply.outputs.user_pool_client_id }}
+            VITE_USER_POOL_ID: ${{ needs.terraform-apply.outputs.user_pool_id }}
+            VITE_WEBSOCKET_URL: ${{ needs.terraform-apply.outputs.websocket_url }}
+
+        permissions:
+            id-token: write
+            contents: read
+
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - name: Install frontend dependencies
+              run: npm install
+
+            - name: Build frontend
+              run: npm run build
+
+            - uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  aws-region: ap-northeast-1
+
+            - name: Deploy to S3
+              run: aws s3 sync dist/ s3://${{ env.S3_BUCKET_NAME }} --delete
+
+            - name: Invalidate CloudFront cache
+              run: aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
