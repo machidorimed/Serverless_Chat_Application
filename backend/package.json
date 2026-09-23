@@ -1,0 +1,13 @@
+{
+  "name": "chat-app-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lambda functions for the serverless WebSocket chat app",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.600.0",
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "aws-jwt-verify": "^4.0.1"
+  }
+}

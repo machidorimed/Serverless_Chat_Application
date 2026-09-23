@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Terraform
+# (.terraform.lock.hcl はプロバイダのバージョン固定用なので、あえてGit管理する)
+infra/terraform/.terraform/
+infra/terraform/.build/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/crash.log
+
+# Node
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Env
+frontend/.env
+
+# Claude
+.claude
+
+# Docs(ローカル参照用。公開リポジトリには含めない)
+docs/
+
+MANUAL.md
