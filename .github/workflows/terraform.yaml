@@ -30,8 +30,12 @@ jobs:
         steps:
             - uses: actions/checkout@v5
 
-            - name: Debug repository name
-              run: echo "${{ github.repository }}"
+            - name: Verify AWS_ROLE_ARN secret (masked)
+              run: |
+                  echo "starts with correct prefix: ${{ startsWith(secrets.AWS_ROLE_ARN, 'arn:aws:iam::398692021932:role/github-oidc-chat-app-role') }}"
+                  echo "length: ${#SECRET_VALUE}"
+              env:
+                  SECRET_VALUE: ${{ secrets.AWS_ROLE_ARN }}
 
             - name: Check Ubuntu version
               run: cat /etc/os-release
