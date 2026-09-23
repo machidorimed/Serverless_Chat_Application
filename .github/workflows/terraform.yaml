@@ -17,7 +17,7 @@ jobs:
     terraform-plan:
         # プルリクエスト時、 test と plan 実行
         if: github.event_name == 'pull_request'
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
 
         defaults:
             run:
@@ -29,16 +29,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v5
-
-            - name: Verify AWS_ROLE_ARN secret (masked)
-              run: |
-                  echo "starts with correct prefix: ${{ startsWith(secrets.AWS_ROLE_ARN, 'arn:aws:iam::398692021932:role/github-oidc-chat-app-role') }}"
-                  echo "length: ${#SECRET_VALUE}"
-              env:
-                  SECRET_VALUE: ${{ secrets.AWS_ROLE_ARN }}
-
-            - name: Check Ubuntu version
-              run: cat /etc/os-release
 
             - uses: actions/setup-node@v4
               with:
