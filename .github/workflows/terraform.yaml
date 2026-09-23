@@ -28,10 +28,10 @@ jobs:
             contents: read
 
         steps:
+            - uses: actions/checkout@v5
+
             - name: Check Ubuntu version
               run: cat /etc/os-release
-
-            - uses: actions/checkout@v5
 
             - uses: actions/setup-node@v4
               with:
